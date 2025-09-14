@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mess Food Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 400px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.95);
+      border-radius: 20px;
+      padding: 25px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      backdrop-filter: blur(10px);
+    }
+    h1 {
+      text-align: center;
+      color: #2d3748;
+      margin-bottom: 25px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .tabs {
+      display: flex;
+      background: #f7fafc;
+      border-radius: 15px;
+      margin-bottom: 25px;
+      padding: 4px;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .tab {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      background: transparent;
+      cursor: pointer;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      color: #718096;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+    }
+    .tab.active { 
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      box-shadow: 0 4px 12px rgba(102,126,234,0.4);
+    }
+    .view { display: none; }
+    .view.active { display: block; }
+    
+    .meal-buttons {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+    .meal-btn {
+      padding: 20px;
+      font-size: 18px;
+      border: none;
+      border-radius: 15px;
+      cursor: pointer;
+      color: white;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+      position: relative;
+      overflow: hidden;
+    }
+    .meal-btn:before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+    .meal-btn:hover:before { left: 100%; }
+    .meal-btn:active { transform: translateY(2px); }
+    .breakfast { background: linear-gradient(135deg, #ff9a56, #ff6b35); }
+    .lunch { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+    .dinner { background: linear-gradient(135deg, #a8edea, #fed6e3); color: #2d3748; }
+    .meal-btn.taken { 
+      opacity: 0.6;
+      transform: scale(0.95);
+    }
+    
+    .today-status {
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .today-status h3 {
+      color: #2d3748;
+      margin-bottom: 15px;
+      font-size: 18px;
+    }
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 16px;
+    }
+    .status-item:last-child { border-bottom: none; }
+    .status-check { font-size: 20px; }
+    
+    .calendar {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .calendar-header h3 {
+      color: #2d3748;
+      font-size: 18px;
+    }
+    .nav-btn {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(102,126,234,0.3);
+    }
+    .nav-btn:hover { transform: translateY(-2px); }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 3px;
+    }
+    .day-header {
+      text-align: center;
+      font-weight: 600;
+      padding: 10px 4px;
+      font-size: 12px;
+      color: #718096;
+      background: #f7fafc;
+      border-radius: 8px;
+    }
+    .day-cell {
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      background: #f7fafc;
+      color: #2d3748;
+    }
+    .day-cell:hover { background: #e2e8f0; }
+    .day-cell.other-month { color: #cbd5e0; }
+    .day-cell.today { 
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      box-shadow: 0 4px 12px rgba(102,126,234,0.4);
+    }
+    .day-cell.selected { 
+      background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+      color: white;
+      box-shadow: 0 4px 12px rgba(255,107,107,0.4);
+    }
+    .meal-dots {
+      display: flex;
+      gap: 2px;
+      margin-top: 3px;
+    }
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .dot.breakfast { background: #ff6b35; }
+    .dot.lunch { background: #00f2fe; }
+    .dot.dinner { background: #fed6e3; }
+    
+    .summary {
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .summary h3 { 
+      margin-bottom: 20px;
+      color: #2d3748;
+      font-size: 18px;
+    }
+    .summary-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 16px;
+    }
+    .summary-item:last-child { border-bottom: none; }
+    .summary-item span:last-child {
+      font-weight: 600;
+      color: #667eea;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-top: 25px;
+    }
+    .control-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      color: white;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .control-btn:hover { transform: translateY(-2px); }
+    .clear-btn { background: linear-gradient(135deg, #ff6b6b, #ee5a52); }
+    .download-btn { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+    .upload-btn { 
+      background: linear-gradient(135deg, #a8edea, #fed6e3);
+      color: #2d3748;
+      position: relative;
+    }
+    .upload-input { 
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🍽️ Mess Tracker</h1>
+    
+    <div class="tabs">
+      <button class="tab active" onclick="showView('today')">Today</button>
+      <button class="tab" onclick="showView('calendar')">Calendar</button>
+      <button class="tab" onclick="showView('summary')">Summary</button>
+    </div>
+    
+    <div id="today" class="view active">
+      <div class="meal-buttons">
+        <button class="meal-btn breakfast" onclick="markMeal('Breakfast')">🌅 Breakfast</button>
+        <button class="meal-btn lunch" onclick="markMeal('Lunch')">🍽️ Lunch</button>
+        <button class="meal-btn dinner" onclick="markMeal('Dinner')">🌙 Dinner</button>
+      </div>
+      <div class="today-status" id="todayStatus"></div>
+    </div>
+    
+    <div id="calendar" class="view">
+      <div class="calendar">
+        <div class="calendar-header">
+          <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
+          <h3 id="monthYear"></h3>
+          <button class="nav-btn" onclick="changeMonth(1)">›</button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </div>
+    </div>
+    
+    <div id="summary" class="view">
+      <div class="summary" id="summaryContent"></div>
+    </div>
+    
+    <div class="controls">
+      <button class="control-btn clear-btn" onclick="clearLog()">Clear</button>
+      <button class="control-btn download-btn" onclick="downloadData()">Export</button>
+      <label class="control-btn upload-btn">
+        Import
+        <input type="file" class="upload-input" accept="application/json" onchange="uploadData(event)">
+      </label>
+    </div>
+  </div>
+
+  <script>
+    let currentDate = new Date();
+    let viewingDate = new Date();
+    let db;
+    
+    // Initialize IndexedDB
+    function initDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('MessTracker', 1);
+        
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          db = request.result;
+          resolve(db);
+        };
+        
+        request.onupgradeneeded = (event) => {
+          db = event.target.result;
+          if (!db.objectStoreNames.contains('meals')) {
+            db.createObjectStore('meals', { keyPath: 'date' });
+          }
+        };
+      });
+    }
+    
+    // Fix timezone issues
+    function getTodayDate() {
+      const now = new Date();
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    }
+    
+    function showView(view) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById(view).classList.add('active');
+      event.target.classList.add('active');
+      
+      if (view === 'calendar') renderCalendar();
+      if (view === 'summary') renderSummary();
+      if (view === 'today') {
+        viewingDate = getTodayDate();
+        updateTodayView();
+      }
+    }
+    
+    function selectDate(date) {
+      viewingDate = new Date(date);
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('today').classList.add('active');
+      document.querySelectorAll('.tab')[0].classList.add('active');
+      updateTodayView();
+    }
+    
+    function getDateString(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    
+    async function loadData() {
+      if (!db) return {};
+      return new Promise((resolve) => {
+        const transaction = db.transaction(['meals'], 'readonly');
+        const store = transaction.objectStore('meals');
+        const request = store.getAll();
+        
+        request.onsuccess = () => {
+          const data = {};
+          request.result.forEach(item => {
+            data[item.date] = item.meals;
+          });
+          resolve(data);
+        };
+        
+        request.onerror = () => resolve({});
+      });
+    }
+    
+    async function saveData(data) {
+      if (!db) return;
+      const transaction = db.transaction(['meals'], 'readwrite');
+      const store = transaction.objectStore('meals');
+      
+      // Clear existing data
+      await store.clear();
+      
+      // Save new data
+      Object.keys(data).forEach(date => {
+        store.put({ date, meals: data[date] });
+      });
+    }
+    
+    async function markMeal(meal) {
+      const dateStr = getDateString(viewingDate);
+      const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+      
+      let data = await loadData();
+      if (!data[dateStr]) data[dateStr] = [];
+      
+      // Check if meal already taken
+      const existing = data[dateStr].find(item => item.meal === meal);
+      if (existing) {
+        if (confirm(`${meal} already marked at ${existing.time}. Mark again?`)) {
+          data[dateStr] = data[dateStr].filter(item => item.meal !== meal);
+        } else return;
+      }
+      
+      data[dateStr].push({meal, time});
+      await saveData(data);
+      updateTodayView();
+      if (document.querySelector('.view.active').id === 'calendar') renderCalendar();
+    }
+    
+    async function updateTodayView() {
+      const viewingDateStr = getDateString(viewingDate);
+      const data = await loadData();
+      const dayMeals = data[viewingDateStr] || [];
+      
+      // Update buttons
+      document.querySelectorAll('.meal-btn').forEach(btn => {
+        const meal = btn.textContent.split(' ')[1];
+        btn.classList.toggle('taken', dayMeals.some(m => m.meal === meal));
+      });
+      
+      // Update status
+      const statusDiv = document.getElementById('todayStatus');
+      const isToday = getDateString(viewingDate) === getDateString(getTodayDate());
+      const dateTitle = isToday ? 'Today' : viewingDate.toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'});
+      statusDiv.innerHTML = `<h3>📋 ${dateTitle}'s Status</h3>`;
+      
+      const mealEmojis = {Breakfast: '🌅', Lunch: '🍽️', Dinner: '🌙'};
+      ['Breakfast', 'Lunch', 'Dinner'].forEach(meal => {
+        const taken = dayMeals.find(m => m.meal === meal);
+        statusDiv.innerHTML += `
+          <div class="status-item">
+            <span>${mealEmojis[meal]} ${meal}</span>
+            <span class="status-check">${taken ? '✅ ' + taken.time : '⏳'}</span>
+          </div>
+        `;
+      });
+    }
+    
+    async function renderCalendar() {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      
+      document.getElementById('monthYear').textContent = 
+        currentDate.toLocaleDateString('en', {month: 'long', year: 'numeric'});
+      
+      const grid = document.getElementById('calendarGrid');
+      grid.innerHTML = '';
+      
+      // Day headers
+      ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
+        const header = document.createElement('div');
+        header.className = 'day-header';
+        header.textContent = day;
+        grid.appendChild(header);
+      });
+      
+      const firstDay = new Date(year, month, 1);
+      const startDate = new Date(firstDay);
+      startDate.setDate(startDate.getDate() - firstDay.getDay());
+      
+      const data = await loadData();
+      const today = getDateString(getTodayDate());
+      
+      for (let i = 0; i < 42; i++) {
+        const cellDate = new Date(startDate);
+        cellDate.setDate(startDate.getDate() + i);
+        const dateStr = getDateString(cellDate);
+        
+        const cell = document.createElement('div');
+        cell.className = 'day-cell';
+        cell.innerHTML = `<span>${cellDate.getDate()}</span>`;
+        
+        if (cellDate.getMonth() !== month) cell.classList.add('other-month');
+        if (dateStr === today) cell.classList.add('today');
+        if (dateStr === getDateString(viewingDate)) cell.classList.add('selected');
+        
+        // Add meal dots
+        const dayMeals = data[dateStr] || [];
+        const dotsDiv = document.createElement('div');
+        dotsDiv.className = 'meal-dots';
+        
+        ['breakfast', 'lunch', 'dinner'].forEach(meal => {
+          if (dayMeals.some(m => m.meal.toLowerCase() === meal)) {
+            const dot = document.createElement('div');
+            dot.className = `dot ${meal}`;
+            dotsDiv.appendChild(dot);
+          }
+        });
+        
+        cell.appendChild(dotsDiv);
+        cell.onclick = (e) => {
+          e.stopPropagation();
+          selectDate(cellDate);
+        };
+        grid.appendChild(cell);
+      }
+    }
+    
+    function changeMonth(delta) {
+      currentDate.setMonth(currentDate.getMonth() + delta);
+      renderCalendar();
+    }
+    
+    async function renderSummary() {
+      const data = await loadData();
+      const now = new Date();
+      const currentMonth = now.toISOString().slice(0, 7);
+      
+      let monthlyCounts = {Breakfast: 0, Lunch: 0, Dinner: 0};
+      let totalCounts = {Breakfast: 0, Lunch: 0, Dinner: 0};
+      let daysWithMeals = new Set();
+      
+      Object.keys(data).forEach(date => {
+        data[date].forEach(meal => {
+          totalCounts[meal.meal]++;
+          if (date.startsWith(currentMonth)) {
+            monthlyCounts[meal.meal]++;
+            daysWithMeals.add(date);
+          }
+        });
+      });
+      
+      const summaryDiv = document.getElementById('summaryContent');
+      summaryDiv.innerHTML = `
+        <h3>📊 ${now.toLocaleDateString('en', {month: 'long'})} Summary</h3>
+        <div class="summary-item"><span>🌅 Breakfasts</span><span>${monthlyCounts.Breakfast}</span></div>
+        <div class="summary-item"><span>🍽️ Lunches</span><span>${monthlyCounts.Lunch}</span></div>
+        <div class="summary-item"><span>🌙 Dinners</span><span>${monthlyCounts.Dinner}</span></div>
+        <div class="summary-item"><span>📈 Monthly Total</span><span>${monthlyCounts.Breakfast + monthlyCounts.Lunch + monthlyCounts.Dinner}</span></div>
+        <div class="summary-item"><span>📅 Active Days</span><span>${daysWithMeals.size}</span></div>
+        <h3 style="margin-top: 20px;">🏆 All Time Totals</h3>
+        <div class="summary-item"><span>🌅 Total Breakfasts</span><span>${totalCounts.Breakfast}</span></div>
+        <div class="summary-item"><span>🍽️ Total Lunches</span><span>${totalCounts.Lunch}</span></div>
+        <div class="summary-item"><span>🌙 Total Dinners</span><span>${totalCounts.Dinner}</span></div>
+        <div class="summary-item"><span>🎯 Grand Total</span><span>${totalCounts.Breakfast + totalCounts.Lunch + totalCounts.Dinner}</span></div>
+      `;
+    }
+    
+    async function clearLog() {
+      if (confirm('Clear all records?')) {
+        await saveData({});
+        updateTodayView();
+      }
+    }
+    
+    async function downloadData() {
+      const data = JSON.stringify(await loadData(), null, 2);
+      const blob = new Blob([data], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'mess-food-log.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    
+    async function uploadData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          await saveData(data);
+          updateTodayView();
+          alert('Data uploaded successfully!');
+        } catch {
+          alert('Invalid file format.');
+        }
+      };
+      reader.readAsText(file);
+    }
+    
+    // Initialize
+    initDB().then(() => {
+      updateTodayView();
+    }).catch(console.error);
+  </script>
+</body>
+</html>
