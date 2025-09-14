@@ -116,6 +116,15 @@
       font-size: 16px;
     }
     .status-item:last-child { border-bottom: none; }
+    .status-item.taken {
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .status-item.taken:hover {
+      background: #f7fafc;
+      border-radius: 8px;
+      padding: 12px 8px;
+    }
     .status-check { font-size: 20px; }
     
     .calendar {
@@ -227,12 +236,12 @@
     }
     
     .controls {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 12px;
       margin-top: 25px;
     }
     .control-btn {
-      flex: 1;
       padding: 12px;
       border: none;
       border-radius: 12px;
@@ -250,6 +259,10 @@
       background: linear-gradient(135deg, #a8edea, #fed6e3);
       color: #2d3748;
       position: relative;
+    }
+    .auto-backup-btn { 
+      background: linear-gradient(135deg, #48bb78, #38a169);
+      grid-column: 1 / -1;
     }
     .upload-input { 
       position: absolute;
@@ -295,12 +308,13 @@
     </div>
     
     <div class="controls">
-      <button class="control-btn clear-btn" onclick="clearLog()">Clear</button>
       <button class="control-btn download-btn" onclick="downloadData()">Export</button>
       <label class="control-btn upload-btn">
         Import
         <input type="file" class="upload-input" accept="application/json" onchange="uploadData(event)">
       </label>
+      <button class="control-btn auto-backup-btn" onclick="toggleAutoBackup()" id="autoBackupBtn">📱 Auto Backup: OFF</button>
+      <button class="control-btn clear-btn" onclick="clearLog()">Clear All</button>
     </div>
   </div>
 
@@ -419,6 +433,24 @@
       if (document.querySelector('.view.active').id === 'calendar') renderCalendar();
     }
     
+    async function removeMeal(meal) {
+      if (confirm(`Remove ${meal} from this date?`)) {
+        const dateStr = getDateString(viewingDate);
+        let data = await loadData();
+        
+        if (data[dateStr]) {
+          data[dateStr] = data[dateStr].filter(item => item.meal !== meal);
+          if (data[dateStr].length === 0) {
+            delete data[dateStr];
+          }
+        }
+        
+        await saveData(data);
+        updateTodayView();
+        if (document.querySelector('.view.active').id === 'calendar') renderCalendar();
+      }
+    }
+    
     async function updateTodayView() {
       const viewingDateStr = getDateString(viewingDate);
       const data = await loadData();
@@ -439,10 +471,14 @@
       const mealEmojis = {Breakfast: '🌅', Lunch: '🍽️', Dinner: '🌙'};
       ['Breakfast', 'Lunch', 'Dinner'].forEach(meal => {
         const taken = dayMeals.find(m => m.meal === meal);
+        const takenClass = taken ? 'taken' : '';
+        const clickHandler = taken ? `onclick="removeMeal('${meal}')"` : '';
+        const statusText = taken ? '✅ ' + taken.time : '⏳';
+        
         statusDiv.innerHTML += `
-          <div class="status-item">
+          <div class="status-item ${takenClass}" ${clickHandler}>
             <span>${mealEmojis[meal]} ${meal}</span>
-            <span class="status-check">${taken ? '✅ ' + taken.time : '⏳'}</span>
+            <span class="status-check">${statusText}</span>
           </div>
         `;
       });
@@ -555,15 +591,67 @@
       }
     }
     
-    async function downloadData() {
+    // Auto backup functionality
+    let autoBackupEnabled = localStorage.getItem('autoBackup') === 'true';
+    
+    function toggleAutoBackup() {
+      autoBackupEnabled = !autoBackupEnabled;
+      localStorage.setItem('autoBackup', autoBackupEnabled);
+      updateAutoBackupButton();
+      
+      if (autoBackupEnabled) {
+        scheduleAutoBackup();
+        alert('Auto backup enabled! Files will be saved to Downloads folder daily.');
+      } else {
+        alert('Auto backup disabled.');
+      }
+    }
+    
+    function updateAutoBackupButton() {
+      const btn = document.getElementById('autoBackupBtn');
+      btn.textContent = `📱 Auto Backup: ${autoBackupEnabled ? 'ON' : 'OFF'}`;
+      btn.style.background = autoBackupEnabled ? 
+        'linear-gradient(135deg, #48bb78, #38a169)' : 
+        'linear-gradient(135deg, #a0aec0, #718096)';
+    }
+    
+    function scheduleAutoBackup() {
+      if (!autoBackupEnabled) return;
+      
+      // Check if we need to backup (once per day)
+      const lastBackup = localStorage.getItem('lastBackup');
+      const today = new Date().toDateString();
+      
+      if (lastBackup !== today) {
+        setTimeout(async () => {
+          await downloadData(true); // Silent backup
+          localStorage.setItem('lastBackup', today);
+        }, 5000); // Backup after 5 seconds
+      }
+      
+      // Schedule next check in 1 hour
+      setTimeout(scheduleAutoBackup, 3600000);
+    }
+    
+    // Modified download function
+    async function downloadData(silent = false) {
       const data = JSON.stringify(await loadData(), null, 2);
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const filename = silent ? 
+        `mess-backup-${timestamp}.json` : 
+        'mess-food-log.json';
+      
       const blob = new Blob([data], {type: 'application/json'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'mess-food-log.json';
+      a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
+      
+      if (!silent) {
+        alert('Data exported! Upload the file to Google Drive for cloud backup.');
+      }
     }
     
     async function uploadData(event) {
@@ -587,6 +675,10 @@
     // Initialize
     initDB().then(() => {
       updateTodayView();
+      updateAutoBackupButton();
+      if (autoBackupEnabled) {
+        scheduleAutoBackup();
+      }
     }).catch(console.error);
   </script>
 </body>
