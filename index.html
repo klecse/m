@@ -430,6 +430,9 @@
       data[dateStr].push({meal, time});
       await saveData(data);
       updateTodayView();
+      if (autoBackupEnabled) {
+        setTimeout(() => downloadData(true), 500);
+      }
       if (document.querySelector('.view.active').id === 'calendar') renderCalendar();
     }
     
@@ -447,6 +450,9 @@
         
         await saveData(data);
         updateTodayView();
+        if (autoBackupEnabled) {
+          setTimeout(() => downloadData(true), 500);
+        }
         if (document.querySelector('.view.active').id === 'calendar') renderCalendar();
       }
     }
